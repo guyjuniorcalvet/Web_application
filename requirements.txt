@@ -1,0 +1,5 @@
+Flask
+peewee
+requests
+pytest
+click
