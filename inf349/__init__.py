@@ -83,6 +83,72 @@ def create_app(test_config=None):
         products = list(Product.select().dicts())
         return jsonify({'products': products})
 
+    @app.route('/order', methods=['POST'])
+    def create_order():
+        payload = request.get_json(silent=True) or {}
+        product_payload = payload.get('product')
+
+        if (
+            not isinstance(product_payload, dict)
+            or 'id' not in product_payload
+            or 'quantity' not in product_payload
+        ):
+            return jsonify({
+                "errors": {
+                    "product": {
+                        "code": "missing-fields",
+                        "name": "La création d'une commande nécessite un produit"
+                    }
+                }
+            }), 422
+
+        try:
+            product_id = int(product_payload['id'])
+            quantity = int(product_payload['quantity'])
+        except (TypeError, ValueError):
+            return jsonify({
+                "errors": {
+                    "product": {
+                        "code": "missing-fields",
+                        "name": "La création d'une commande nécessite un produit"
+                    }
+                }
+            }), 422
+
+        if quantity < 1:
+            return jsonify({
+                "errors": {
+                    "product": {
+                        "code": "missing-fields",
+                        "name": "La création d'une commande nécessite un produit"
+                    }
+                }
+            }), 422
+
+        product = Product.get_or_none(Product.id == product_id)
+        if not product or not product.in_stock:
+            return jsonify({
+                "errors": {
+                    "product": {
+                        "code": "out-of-inventory",
+                        "name": "Le produit demandé n'est pas en inventaire"
+                    }
+                }
+            }), 422
+
+        total_price = product.price * quantity
+        order = Order.create(
+            product_id=product.id,
+            quantity=quantity,
+            total_price=total_price,
+            total_price_tax=total_price
+        )
+
+        response = jsonify({})
+        response.status_code = 302
+        response.headers['Location'] = f"/order/{order.id}"
+        return response
+
     @app.route('/ui/order', methods=['GET', 'POST'])
     def ui_order_form():
         products = list(Product.select().order_by(Product.name))
