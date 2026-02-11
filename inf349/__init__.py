@@ -110,6 +110,17 @@ def serialize_order(order):
     }
 
 
+def missing_order_fields_response():
+    return jsonify({
+        "errors": {
+            "order": {
+                "code": "missing-fields",
+                "name": "Il manque un ou plusieurs champs qui sont obligatoires"
+            }
+        }
+    }), 422
+
+
 def create_app(test_config=None):
     """Create and configure an instance of the Flask application."""
     app = Flask(__name__, instance_relative_config=True)
@@ -223,6 +234,65 @@ def create_app(test_config=None):
                     }
                 }
             }), 404
+
+        return jsonify({"order": serialize_order(order)}), 200
+
+    @app.route('/order/<int:order_id>', methods=['PUT'])
+    def update_order_client(order_id):
+        order = Order.get_or_none(Order.id == order_id)
+        if order is None:
+            return jsonify({
+                "errors": {
+                    "order": {
+                        "code": "not-found",
+                        "name": "La commande demandée est introuvable"
+                    }
+                }
+            }), 404
+
+        payload = request.get_json(silent=True) or {}
+        if set(payload.keys()) != {"order"}:
+            return missing_order_fields_response()
+
+        order_payload = payload.get('order')
+        if not isinstance(order_payload, dict):
+            return missing_order_fields_response()
+
+        allowed_order_fields = {"email", "shipping_information"}
+        if set(order_payload.keys()) - allowed_order_fields:
+            return missing_order_fields_response()
+
+        email = order_payload.get('email')
+        shipping_information = order_payload.get('shipping_information')
+
+        if not isinstance(email, str) or not email.strip():
+            return missing_order_fields_response()
+
+        if not isinstance(shipping_information, dict):
+            return missing_order_fields_response()
+
+        required_shipping_fields = {
+            "country",
+            "address",
+            "postal_code",
+            "city",
+            "province",
+        }
+        if required_shipping_fields - set(shipping_information.keys()):
+            return missing_order_fields_response()
+
+        for field in required_shipping_fields:
+            value = shipping_information.get(field)
+            if not isinstance(value, str) or not value.strip():
+                return missing_order_fields_response()
+
+        order.email = email.strip()
+        order.shipping_country = shipping_information["country"].strip()
+        order.shipping_address = shipping_information["address"].strip()
+        order.shipping_postal_code = shipping_information["postal_code"].strip()
+        order.shipping_city = shipping_information["city"].strip()
+        order.shipping_province = shipping_information["province"].strip()
+        order.save()
 
         return jsonify({"order": serialize_order(order)}), 200
 
