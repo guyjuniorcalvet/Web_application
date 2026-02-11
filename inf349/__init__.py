@@ -1,4 +1,4 @@
-from flask import Flask, jsonify
+from flask import Flask, jsonify, render_template, request, redirect, url_for
 import os
 import requests
 import click
@@ -83,6 +83,74 @@ def create_app(test_config=None):
         products = list(Product.select().dicts())
         return jsonify({'products': products})
 
+    @app.route('/ui/order', methods=['GET', 'POST'])
+    def ui_order_form():
+        products = list(Product.select().order_by(Product.name))
+
+        if request.method == 'POST':
+            product_id = request.form.get('product_id', '').strip()
+            quantity = request.form.get('quantity', '').strip()
+
+            try:
+                product_id = int(product_id)
+                quantity = int(quantity)
+            except ValueError:
+                return render_template(
+                    'order_form.html',
+                    products=products,
+                    error="Veuillez fournir un produit et une quantité valides."
+                ), 422
+
+            if quantity < 1:
+                return render_template(
+                    'order_form.html',
+                    products=products,
+                    error="La quantité doit être supérieure ou égale à 1."
+                ), 422
+
+            try:
+                product = Product.get_by_id(product_id)
+            except Product.DoesNotExist:
+                return render_template(
+                    'order_form.html',
+                    products=products,
+                    error="Le produit sélectionné est introuvable."
+                ), 404
+
+            if not product.in_stock:
+                return render_template(
+                    'order_form.html',
+                    products=products,
+                    error="Le produit sélectionné n'est pas en inventaire."
+                ), 422
+
+            total_price = product.price * quantity
+
+            order = Order.create(
+                product_id=product.id,
+                quantity=quantity,
+                total_price=total_price,
+                total_price_tax=total_price
+            )
+
+            return redirect(url_for('ui_order_confirmation', order_id=order.id))
+
+        return render_template('order_form.html', products=products)
+
+    @app.route('/ui/order/<int:order_id>')
+    def ui_order_confirmation(order_id):
+        try:
+            order = Order.get_by_id(order_id)
+            product = Product.get_by_id(order.product_id)
+        except (Order.DoesNotExist, Product.DoesNotExist):
+            return "Commande introuvable.", 404
+
+        return render_template(
+            'order_confirmation.html',
+            order=order,
+            product=product
+        )
+
     # Register the init-db command
     app.cli.add_command(init_db_command)
 
@@ -117,4 +185,3 @@ def init_db_command():
     """Clear existing data and create new tables."""
     init_db()
     click.echo('Initialized the database.')
-

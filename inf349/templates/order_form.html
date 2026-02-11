@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Formulaire d'achat</title>
+</head>
+<body>
+  <h1>Formulaire d'achat</h1>
+
+  {% if error %}
+    <p>{{ error }}</p>
+  {% endif %}
+
+  <form method="post" action="{{ url_for('ui_order_form') }}">
+    <div>
+      <label for="product_id">Produit</label>
+      <select id="product_id" name="product_id" required>
+        <option value="">-- Sélectionner un produit --</option>
+        {% for product in products %}
+          {% if product.in_stock %}
+            <option value="{{ product.id }}">
+              {{ product.name }} ({{ product.price }})
+            </option>
+          {% endif %}
+        {% endfor %}
+      </select>
+    </div>
+
+    <div>
+      <label for="quantity">Quantité</label>
+      <input id="quantity" name="quantity" type="number" min="1" value="1" required>
+    </div>
+
+    <button type="submit">Valider le panier</button>
+  </form>
+</body>
+</html>
