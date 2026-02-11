@@ -11,7 +11,7 @@
   <p>Commande #{{ order.id }}</p>
   <p>Produit: {{ product.name }}</p>
   <p>Quantité: {{ order.quantity }}</p>
-  <p>Total (sans taxes ni livraison): {{ order.total_price }}</p>
+  <p>Sous-total du panier: {{ order.total_price }}</p>
 
   <p><a href="{{ url_for('ui_order_form') }}">Créer une autre commande</a></p>
 </body>
