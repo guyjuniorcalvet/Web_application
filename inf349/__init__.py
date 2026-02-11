@@ -48,6 +48,68 @@ class Order(BaseModel):
     transaction_amount_charged = FloatField(null=True)
 
 
+def serialize_order(order):
+    shipping_information = {}
+    if (
+        order.shipping_country is not None
+        or order.shipping_address is not None
+        or order.shipping_postal_code is not None
+        or order.shipping_city is not None
+        or order.shipping_province is not None
+    ):
+        shipping_information = {
+            "country": order.shipping_country,
+            "address": order.shipping_address,
+            "postal_code": order.shipping_postal_code,
+            "city": order.shipping_city,
+            "province": order.shipping_province,
+        }
+
+    credit_card = {}
+    if (
+        order.credit_card_name is not None
+        or order.credit_card_first_digits is not None
+        or order.credit_card_last_digits is not None
+        or order.credit_card_expiration_year is not None
+        or order.credit_card_expiration_month is not None
+    ):
+        credit_card = {
+            "name": order.credit_card_name,
+            "first_digits": order.credit_card_first_digits,
+            "last_digits": order.credit_card_last_digits,
+            "expiration_year": order.credit_card_expiration_year,
+            "expiration_month": order.credit_card_expiration_month,
+        }
+
+    transaction = {}
+    if (
+        order.transaction_id is not None
+        or order.transaction_success is not None
+        or order.transaction_amount_charged is not None
+    ):
+        transaction = {
+            "id": order.transaction_id,
+            "success": order.transaction_success,
+            "amount_charged": order.transaction_amount_charged,
+        }
+
+    return {
+        "id": order.id,
+        "total_price": order.total_price,
+        "total_price_tax": order.total_price_tax,
+        "email": order.email,
+        "credit_card": credit_card,
+        "shipping_information": shipping_information,
+        "paid": order.paid,
+        "transaction": transaction,
+        "product": {
+            "id": order.product_id,
+            "quantity": order.quantity,
+        },
+        "shipping_price": order.shipping_price,
+    }
+
+
 def create_app(test_config=None):
     """Create and configure an instance of the Flask application."""
     app = Flask(__name__, instance_relative_config=True)
@@ -148,6 +210,21 @@ def create_app(test_config=None):
         response.status_code = 302
         response.headers['Location'] = f"/order/{order.id}"
         return response
+
+    @app.route('/order/<int:order_id>', methods=['GET'])
+    def get_order(order_id):
+        order = Order.get_or_none(Order.id == order_id)
+        if order is None:
+            return jsonify({
+                "errors": {
+                    "order": {
+                        "code": "not-found",
+                        "name": "La commande demandée est introuvable"
+                    }
+                }
+            }), 404
+
+        return jsonify({"order": serialize_order(order)}), 200
 
     @app.route('/ui/order', methods=['GET', 'POST'])
     def ui_order_form():
