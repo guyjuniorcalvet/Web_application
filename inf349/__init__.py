@@ -3,6 +3,8 @@ import os
 import requests
 import click
 from peewee import *
+from inf349.taxes import calculate_total_with_tax
+from inf349.shipping import calculate_shipping_price
 
 # Database setup
 db = SqliteDatabase('database.db')
@@ -295,6 +297,26 @@ def create_app(test_config=None):
         order.shipping_postal_code = shipping_information["postal_code"].strip()
         order.shipping_city = shipping_information["city"].strip()
         order.shipping_province = shipping_information["province"].strip()
+        
+        # Calculate shipping price and taxes
+        product = Product.get_or_none(Product.id == order.product_id)
+        if product:
+            # Calculate shipping price based on total weight
+            total_weight = product.weight * order.quantity
+            try:
+                order.shipping_price = calculate_shipping_price(total_weight)
+            except ValueError:
+                order.shipping_price = 0
+            
+            # Calculate total price with tax based on province
+            province = order.shipping_province
+            try:
+                subtotal = order.total_price + order.shipping_price
+                order.total_price_tax = calculate_total_with_tax(subtotal, province)
+            except ValueError:
+                # If province is not recognized, keep the basic total
+                order.total_price_tax = order.total_price + order.shipping_price
+        
         order.save()
 
         return jsonify({"order": serialize_order(order)}), 200
