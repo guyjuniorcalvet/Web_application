@@ -236,6 +236,9 @@ def create_app(test_config=None):
             }), 404
 
         return jsonify({"order": serialize_order(order)}), 200
+    
+
+
 
     @app.route('/order/<int:order_id>', methods=['PUT'])
     def update_order_client(order_id):
