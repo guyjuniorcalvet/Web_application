@@ -31,6 +31,42 @@
       <label for="quantity">Quantité</label>
       <input id="quantity" name="quantity" type="number" min="1" value="1" required>
     </div>
+    
+      <div>
+        <label for="email">Courriel</label>
+        <input id="email" name="email" type="email" required>
+      </div>
+    
+      <fieldset>
+        <legend>Adresse de livraison</legend>
+        <div>
+          <label for="shipping_country">Pays</label>
+          <input id="shipping_country" name="shipping_country" type="text" required>
+        </div>
+        <div>
+          <label for="shipping_address">Adresse</label>
+          <input id="shipping_address" name="shipping_address" type="text" required>
+        </div>
+        <div>
+          <label for="shipping_postal_code">Code postal</label>
+          <input id="shipping_postal_code" name="shipping_postal_code" type="text" required>
+        </div>
+        <div>
+          <label for="shipping_city">Ville</label>
+          <input id="shipping_city" name="shipping_city" type="text" required>
+        </div>
+        <div>
+          <label for="shipping_province">Province</label>
+          <select id="shipping_province" name="shipping_province" required>
+            <option value="">-- Sélectionner une province --</option>
+            <option value="QC">Québec</option>
+            <option value="ON">Ontario</option>
+            <option value="AB">Alberta</option>
+            <option value="BC">Colombie-Britannique</option>
+            <option value="NS">Nouvelle-Écosse</option>
+          </select>
+        </div>
+      </fieldset>
 
     <button type="submit">Valider le panier</button>
   </form>

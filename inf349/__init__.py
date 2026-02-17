@@ -123,6 +123,7 @@ def missing_order_fields_response():
     }), 422
 
 
+
 def create_app(test_config=None):
     """Create and configure an instance of the Flask application."""
     app = Flask(__name__, instance_relative_config=True)
@@ -143,6 +144,23 @@ def create_app(test_config=None):
         os.makedirs(app.instance_path)
     except OSError:
         pass
+
+    @app.errorhandler(422)
+    def handle_422_error(error):
+        response = getattr(error, 'description', None)
+        # Si la description est déjà un dict/json, on le retourne, sinon on standardise
+        if isinstance(response, dict):
+            return jsonify(response), 422
+        return jsonify({
+            "errors": {
+                "order": {
+                    "code": "unprocessable-entity",
+                    "name": "Erreur de validation des champs."
+                }
+            }
+        }), 422
+
+    # ...existing code...
 
     @app.before_request
     def before_request():
@@ -328,6 +346,20 @@ def create_app(test_config=None):
         if request.method == 'POST':
             product_id = request.form.get('product_id', '').strip()
             quantity = request.form.get('quantity', '').strip()
+            email = request.form.get('email', '').strip()
+            shipping_country = request.form.get('shipping_country', '').strip()
+            shipping_address = request.form.get('shipping_address', '').strip()
+            shipping_postal_code = request.form.get('shipping_postal_code', '').strip()
+            shipping_city = request.form.get('shipping_city', '').strip()
+            shipping_province = request.form.get('shipping_province', '').strip()
+
+            # Validation des champs obligatoires
+            if not all([product_id, quantity, email, shipping_country, shipping_address, shipping_postal_code, shipping_city, shipping_province]):
+                return render_template(
+                    'order_form.html',
+                    products=products,
+                    error="Tous les champs sont obligatoires."
+                ), 422
 
             try:
                 product_id = int(product_id)
@@ -363,12 +395,32 @@ def create_app(test_config=None):
                 ), 422
 
             total_price = product.price * quantity
+            # Calcul du prix de livraison
+            total_weight = product.weight * quantity
+            try:
+                shipping_price = calculate_shipping_price(total_weight)
+            except Exception:
+                shipping_price = 0
+
+            # Calcul du total avec taxes
+            try:
+                subtotal = total_price + shipping_price
+                total_price_tax = calculate_total_with_tax(subtotal, shipping_province)
+            except Exception:
+                total_price_tax = total_price + shipping_price
 
             order = Order.create(
                 product_id=product.id,
                 quantity=quantity,
                 total_price=total_price,
-                total_price_tax=total_price
+                total_price_tax=total_price_tax,
+                email=email,
+                shipping_country=shipping_country,
+                shipping_address=shipping_address,
+                shipping_postal_code=shipping_postal_code,
+                shipping_city=shipping_city,
+                shipping_province=shipping_province,
+                shipping_price=shipping_price
             )
 
             return redirect(url_for('ui_order_confirmation', order_id=order.id))
@@ -389,9 +441,9 @@ def create_app(test_config=None):
             product=product
         )
 
+
     # Register the init-db command
     app.cli.add_command(init_db_command)
-
     return app
 
 def init_db():
