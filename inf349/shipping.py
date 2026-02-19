@@ -9,13 +9,13 @@ SHIPPING = [
 ]
 
 #Fonction pour calculer le prix de la livraison selon le poids 
-def calculate_shipping_price(weight):
+def calculate_shipping_price(total_weight):
     
-    if weight <= 0:
+    if total_weight <= 0:
         raise ValueError("Le poids doit être supérieur à 0")
 
     for max_weight, price in SHIPPING:
-        if weight <= max_weight:
+        if total_weight <= max_weight:
             return round(float(price), 2)
 
     # Should never reach here, but just in case
