@@ -122,6 +122,169 @@ def missing_order_fields_response():
         }
     }), 422
 
+def process_payment(order, credit_card_info):
+    
+    #Valider que la carte de crédit est un dictionnaire
+    if not isinstance(credit_card_info,dict):
+        return (jsonify({
+            "errors": {
+                "credit_card": {
+                    "code": "invalid-format",
+                    "name": "Format invalide pour la carte de crédit"
+                }
+            }
+        })), 422
+
+    # Valider des champs requis sont présents et valides
+    required_fields = {"name", "number", "expiration_year", "expiration_month", "cvv"}
+    if not required_fields.issubset(credit_card_info.keys()):
+        return (jsonify({
+            "errors": {
+                "credit_card": {
+                    "code": "missing-fields",
+                    "name": "Certains champs de la carte sont manquants"
+                }
+            }
+        }), 422)
+        
+    # Validation du  nom du client
+    name = credit_card_info.get('name')
+    if not isinstance(name, str) or not name.strip():
+        return (jsonify({
+            "errors": {
+                "credit_card": {
+                    "code": "invalid-name",
+                    "name": "Le nom est invalide"
+                }
+            }
+        }), 422)
+ 
+   # Validation du numéro de carte de crédit 
+    number = credit_card_info.get('number')
+    if not isinstance(number, str):
+       return (jsonify({
+           "errors": {
+               "credit_card": {
+                   "code": "incorrect-number",
+                   "name": "Le numéro de carte est incorrect"
+               }
+           }
+       }), 422)
+  
+    clean_number = number.replace(" ","" )
+
+    # Validation du champ expiration_year
+    try:
+        expiration_year = int(credit_card_info.get('expiration_year'))
+    except (TypeError, ValueError):
+        return (jsonify({
+            "errors": {
+                "credit_card": {
+                    "code": "invalid-expiration",
+                    "name": "L'année d'expiration est invalide"
+                }
+            }
+        }), 422)
+        
+    # Validation du champs expiration_month
+    try: 
+        expiration_month= int(credit_card_info.get('expiration_month'))
+        if expiration_month < 1 or expiration_month > 12:
+            raise ValueError("Invalid month")
+    except (TypeError, ValueError):
+        return (jsonify({
+            "errors": {
+                "credit_card": {
+                    "code": "invalid-expiration",
+                        "name": "Le mois d'expiration est invalide"
+                    }
+                }
+            }), 422)
+
+    # Validation du CVV 
+    cvv=credit_card_info.get('cvv')
+    if not isinstance(cvv, str) or not cvv.isdigit() or len(cvv) !=3:
+        return (jsonify({
+            "errors": {
+                "credit_card": {
+                    "code": "invalid-cvv",
+                    "name": "Le CVV est incorrect"
+                }
+            }
+        }), 422)
+        
+    # Convertir le prix total des taxes en cents
+    amount_charged_cents = int(round(order.total_price_tax * 100))
+
+    payment_request = {
+        "credit_card": {
+            "name": name.strip(),
+            "number": clean_number,
+            "expiration_year": expiration_year,
+            "expiration_month": expiration_month,
+            "cvv": cvv
+        },
+        "amount_charged": amount_charged_cents
+    }
+    
+    try:
+        response = requests.post(
+            'http://dimensweb.uqac.ca/~jgnault/shops/pay/',
+            json=payment_request,
+            timeout=10
+        )
+        print(f"Payment service response: {response.status_code} {response.text}") # Pour identifier le code d'erreur sur la console 
+        # Si la carte de crédit est acceptée
+        if response.status_code == 200:
+        
+            # Paiment  réussi
+            payment_response = response.json()
+            
+            # Extraction des informations de la transaction
+            transaction =  payment_response.get('transaction', {})
+            response_card = payment_response.get('credit_card', {})
+
+            
+            
+            order.paid = True
+            order.credit_card_name = response_card.get('name')
+            order.credit_card_first_digits = response_card.get('first_digits')
+            order.credit_card_last_digits = response_card.get('last_digits')
+            order.credit_card_expiration_year = response_card.get('expiration_year')
+            order.credit_card_expiration_month = response_card.get('expiration_month')
+            order.transaction_id = transaction.get('id')
+            order.transaction_success = transaction.get('success')
+            order.transaction_amount_charged = transaction.get('amount_charged')
+
+            order.save()
+            return None  
+
+        elif response.status_code == 422:
+            # La carte de crédit a été refusée 
+            error_response = response.json()
+            return (jsonify(error_response), 422)
+        else:
+            # Erreur  du service de paiement 
+            return (jsonify({
+                "errors": {
+                    "payment": {
+                        "code": "service-error",
+                        "name": "Le service de paiement a rencontre une erreur"
+                    }
+                }
+            }), 500)
+
+    except requests.exceptions.RequestException:
+        # Erreur de communication avec le service de paiement
+        return (jsonify({
+            "errors": {
+                "payment": {
+                    "code": "service-unavailable",
+                    "name": "Le service de paiement est temporairement indisponible"
+                }
+            }
+        }), 503)
+
 
 
 def create_app(test_config=None):
@@ -160,7 +323,7 @@ def create_app(test_config=None):
             }
         }), 422
 
-    # ...existing code...
+   
 
     @app.before_request
     def before_request():
@@ -281,12 +444,13 @@ def create_app(test_config=None):
         if not isinstance(order_payload, dict):
             return missing_order_fields_response()
 
-        allowed_order_fields = {"email", "shipping_information"}
+        allowed_order_fields = {"email", "shipping_information", "credit_card"}
         if set(order_payload.keys()) - allowed_order_fields:
             return missing_order_fields_response()
 
         email = order_payload.get('email')
         shipping_information = order_payload.get('shipping_information')
+        credit_card_info = order_payload.get('credit_card')
 
         if not isinstance(email, str) or not email.strip():
             return missing_order_fields_response()
@@ -330,12 +494,18 @@ def create_app(test_config=None):
             province = order.shipping_province
             try:
                 subtotal = order.total_price + order.shipping_price
-                order.total_price_tax = calculate_total_with_tax(subtotal, province)
+                order.total_price_tax = calculate_total_with_tax(subtotal, province) 
             except ValueError:
                 # If province is not recognized, keep the basic total
                 order.total_price_tax = order.total_price + order.shipping_price
         
         order.save()
+
+        # On procède au paiement si les informations de la carte de crédit sont fournies
+        if credit_card_info is not None:
+            payment_error = process_payment(order, credit_card_info)
+            if payment_error is not None:
+                return payment_error
 
         return jsonify({"order": serialize_order(order)}), 200
 
