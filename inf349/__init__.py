@@ -229,7 +229,7 @@ def process_payment(order, credit_card_info):
     
     try:
         response = requests.post(
-            'http://dimensweb.uqac.ca/~jgnault/shops/pay/',
+            'http://dimprojetu.uqac.ca/~jgnault/shops/pay/',
             json=payment_request,
             timeout=10
         )
