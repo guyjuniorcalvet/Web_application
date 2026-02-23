@@ -337,6 +337,12 @@ def create_app(test_config=None):
     @app.route('/')
     def list_products():
         products = list(Product.select().dicts())
+        return render_template('products_list.html', products=products)
+    
+    @app.route('/api/products')
+    def api_list_products():
+        """API endpoint pour obtenir les produits en JSON"""
+        products = list(Product.select().dicts())
         return jsonify({'products': products})
 
     @app.route('/order', methods=['POST'])

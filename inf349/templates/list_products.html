@@ -1,0 +1,43 @@
+<!DOCTYPE HTML>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Liste de produits</title>
+</head>
+<body>
+  <h1>Liste de Produits</h1>
+
+  {% if products %}
+    <div class="product-list">
+      {% for product in products %}
+        <div class="product-card">
+          <div class="product-image">
+            {% if product.image %}
+              <img src="{{ product.image }}" alt="{{ product.name }}">
+            {% endif %}
+          </div>
+
+          <div class="product-info">
+            <h2>{{ product.name }}</h2>
+            <p>{{ product.description }}</p>
+            <p>Poids: {{ product.weight }}g</p>
+            <p>Prix: ${{ "%.2f" | format(product.price) }}</p>
+          </div>
+
+          <div class="product-actions">
+            {% if product.in_stock %}
+              <div class="stock-status in-stock">En stock</div>
+              <a href="{{ url_for('ui_order_form') }}?product_id={{ product.id }}" class="add-to-cart">Ajouter au panier</a>
+            {% else %}
+              <div class="stock-status out-of-stock"> En rupture</div>
+              <button class="add-to-cart" disabled>Indisponible</button>
+            {% endif %}
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  
+  {% endif %}
+</body>
+</html> 
