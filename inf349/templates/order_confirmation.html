@@ -12,6 +12,14 @@
   <p>Produit: {{ product.name }}</p>
   <p>Quantité: {{ order.quantity }}</p>
   <p>Sous-total du panier: {{ order.total_price }}</p>
+  <p>Montant avec livraison et taxes: {{ order.total_price_tax }}</p>
+
+  {% if order.paid %}
+    <p>Statut du paiement: payée</p>
+  {% else %}
+    <p>Statut du paiement: non payée</p>
+    <p><a href="{{ url_for('ui_payment_form', order_id=order.id) }}">Passer au paiement</a></p>
+  {% endif %}
 
   <p><a href="{{ url_for('ui_order_form') }}">Créer une autre commande</a></p>
 </body>

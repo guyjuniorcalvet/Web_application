@@ -122,6 +122,33 @@ def missing_order_fields_response():
         }
     }), 422
 
+
+def has_complete_customer_information(order):
+    return all([
+        order.email,
+        order.shipping_country,
+        order.shipping_address,
+        order.shipping_postal_code,
+        order.shipping_city,
+        order.shipping_province,
+    ])
+
+
+def extract_error_name(payload):
+    if not isinstance(payload, dict):
+        return "Une erreur est survenue pendant le paiement."
+
+    if isinstance(payload.get("errors"), dict):
+        first_error = next(iter(payload["errors"].values()), None)
+        if isinstance(first_error, dict) and first_error.get("name"):
+            return first_error["name"]
+
+    if isinstance(payload.get("credit_card"), dict) and payload["credit_card"].get("name"):
+        return payload["credit_card"]["name"]
+
+    return "Une erreur est survenue pendant le paiement."
+
+
 def process_payment(order, credit_card_info):
     
     #Valider que la carte de crédit est un dictionnaire
@@ -616,6 +643,62 @@ def create_app(test_config=None):
             order=order,
             product=product
         )
+
+    @app.route('/ui/order/<int:order_id>/payment', methods=['GET', 'POST'])
+    def ui_payment_form(order_id):
+        try:
+            order = Order.get_by_id(order_id)
+            product = Product.get_by_id(order.product_id)
+        except (Order.DoesNotExist, Product.DoesNotExist):
+            return "Commande introuvable.", 404
+
+        if order.paid:
+            return render_template(
+                'payment_form.html',
+                order=order,
+                product=product,
+                error="La commande a déjà été payée."
+            ), 422
+
+        if not has_complete_customer_information(order):
+            return render_template(
+                'payment_form.html',
+                order=order,
+                product=product,
+                error="Les informations client sont requises avant le paiement."
+            ), 422
+
+        if request.method == 'POST':
+            credit_card_info = {
+                "name": request.form.get('name', '').strip(),
+                "number": request.form.get('number', '').strip(),
+                "expiration_year": request.form.get('expiration_year', '').strip(),
+                "expiration_month": request.form.get('expiration_month', '').strip(),
+                "cvv": request.form.get('cvv', '').strip(),
+            }
+
+            if not all(credit_card_info.values()):
+                return render_template(
+                    'payment_form.html',
+                    order=order,
+                    product=product,
+                    error="Tous les champs de carte de crédit sont obligatoires."
+                ), 422
+
+            payment_error = process_payment(order, credit_card_info)
+            if payment_error is not None:
+                response, status_code = payment_error
+                error_payload = response.get_json(silent=True) if hasattr(response, 'get_json') else {}
+                return render_template(
+                    'payment_form.html',
+                    order=order,
+                    product=product,
+                    error=extract_error_name(error_payload)
+                ), status_code
+
+            return redirect(url_for('ui_order_confirmation', order_id=order.id))
+
+        return render_template('payment_form.html', order=order, product=product)
 
 
     # Register the init-db command
