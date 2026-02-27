@@ -9,10 +9,15 @@ class Test_calculate_shipping_price:
     
     # Test unitaire pour la fonctionnalité de la méthode calculate_shipping_price()
      def test_shipping_up_to_500g(self):
-         assert calculate_shipping_price(400)==5.0
+         assert calculate_shipping_price(25)==5.0
+         assert calculate_shipping_price(50)==5.0
+         assert calculate_shipping_price(100)==5.0
+         assert calculate_shipping_price(500)==5.0
          
      def test_shipping_500g_to_2kg(self):
          assert calculate_shipping_price(800)==10.0
+         assert calculate_shipping_price(1000)==10.0
+         assert calculate_shipping_price(2000)==10.0
          
      def test_shipping_greater_than_2kg(self):
         assert calculate_shipping_price(3000)==25.0

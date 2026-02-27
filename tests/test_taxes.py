@@ -18,10 +18,10 @@ class Test_get_tax_rate:
         assert get_tax_rate('AB') == 0.05
         
     def test_colombie_britannique_tax_rate(self):
-        assert get_tax_rate('CB') == 0.12
+        assert get_tax_rate('BC') == 0.12
     
     def test_nouvelle_ecosse_tax_rate(self):
-        assert get_tax_rate('NE') == 0.14
+        assert get_tax_rate('NS') == 0.14
 
     # Test unitaire pour la gestion des erreurs 
     def test_invalid_province(self):
@@ -42,10 +42,10 @@ class Test_calculate_taxes:
         assert calculate_taxes(100.0, 'AB') == 5.0
     
     def test_calculate_taxes_colombie_britannique(self):
-        assert calculate_taxes(100.0, 'CB') == 12.0
+        assert calculate_taxes(100.0, 'BC') == 12.0
 
     def test_calculate_taxes_nouvelle_ecosse(self):
-        assert calculate_taxes(100.0, 'NE') == 14.0
+        assert calculate_taxes(100.0, 'NS') == 14.0
     
     # Test unitaire pour la gestion des erreurs et des exceptions
     def test_calculate_taxes_zero_subtotal(self):
@@ -72,14 +72,14 @@ class Test_calculate_total_with_tax:
         assert calculate_total_with_tax(100.0, 'AB') == 105.0
         
     def test_total_with_tax_colombie_britannique(self):
-        assert calculate_total_with_tax(100.0, 'CB') == 112.0
+        assert calculate_total_with_tax(100.0, 'BC') == 112.0
     
     def test_total_with_tax_nouvelle_ecosse(self):
-        assert calculate_total_with_tax(100.0, 'NE') == 114.0
+        assert calculate_total_with_tax(100.0, 'NS') == 114.0
     
     #Test unitaire pour la gestion des erreurs 
     def test_total_with_tax_zero_subtotal(self):
-        assert calculate_total_with_tax(0.0, 'NE') == 0.0
+        assert calculate_total_with_tax(0.0, 'NS') == 0.0
     
     def test_total_with_tax_invalid_province(self):
         with pytest.raises(ValueError):

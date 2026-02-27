@@ -6,8 +6,8 @@ TAX_RATES = {
     'QC': 0.15,  # Québec: 15%
     'ON': 0.13,  # Ontario: 13%
     'AB': 0.05,  # Alberta: 5%
-    'CB': 0.12,  # Colombie-Britannique: 12%
-    'NE': 0.14,  # Nouvelle-Écosse: 14%
+    'BC': 0.12,  # Colombie-Britannique: 12%
+    'NS': 0.14,  # Nouvelle-Écosse: 14%
 }
 # Fonction pour obtenir le taux de la taxe selon la province
 def get_tax_rate(province):
