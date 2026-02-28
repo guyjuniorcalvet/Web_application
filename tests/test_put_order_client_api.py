@@ -177,3 +177,29 @@ def test_put_order_client_rejects_mixed_order_and_credit_card_payload(client):
             }
         }
     }
+
+
+def test_put_order_rejects_empty_payload(client):
+    response = client.put("/order/1", json={})
+    assert response.status_code == 422
+    assert response.get_json() == {
+        "errors": {
+            "order": {
+                "code": "missing-fields",
+                "name": "Il manque un ou plusieurs champs qui sont obligatoires",
+            }
+        }
+    }
+
+
+def test_put_order_rejects_unknown_root_key_payload(client):
+    response = client.put("/order/1", json={"foo": "bar"})
+    assert response.status_code == 422
+    assert response.get_json() == {
+        "errors": {
+            "order": {
+                "code": "missing-fields",
+                "name": "Il manque un ou plusieurs champs qui sont obligatoires",
+            }
+        }
+    }
