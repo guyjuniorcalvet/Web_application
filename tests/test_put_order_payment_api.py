@@ -142,7 +142,7 @@ def test_put_order_payment_success_persists_card_and_transaction(client, monkeyp
     captured_payload = {}
 
     def fake_post(*args, **kwargs):
-        captured_payload["json"] = kwargs.get("json", {})
+        captured_payload["json"] = args[1] if len(args) > 1 else {}
         return FakeResponse(
             200,
             {
@@ -161,7 +161,7 @@ def test_put_order_payment_success_persists_card_and_transaction(client, monkeyp
             },
         )
 
-    monkeypatch.setattr("inf349.requests.post", fake_post)
+    monkeypatch.setattr("inf349.http_post_json", fake_post)
 
     response = client.put("/order/1", json=valid_credit_card_payload())
     assert response.status_code == 200
@@ -197,7 +197,7 @@ def test_put_order_payment_propagates_remote_422_error(client, monkeypatch):
             },
         )
 
-    monkeypatch.setattr("inf349.requests.post", fake_post)
+    monkeypatch.setattr("inf349.http_post_json", fake_post)
 
     response = client.put("/order/1", json=valid_credit_card_payload())
     assert response.status_code == 422

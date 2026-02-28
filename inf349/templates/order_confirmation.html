@@ -4,10 +4,21 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Panier valide</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
 </head>
 <body>
+  <main class="container">
   <h1>Panier validé</h1>
 
+  {% if payment_success %}
+    <p class="notice">Paiement effectué avec succès.</p>
+  {% endif %}
+
+  {% if payment_error %}
+    <p class="error">{{ payment_error }}</p>
+  {% endif %}
+
+  <section class="order-summary">
   <p>Commande #{{ order.id }}</p>
   <p>Produit: {{ product.name }}</p>
   <p>Quantité: {{ order.quantity }}</p>
@@ -20,9 +31,15 @@
     <p>Statut du paiement: payée</p>
   {% else %}
     <p>Statut du paiement: non payée</p>
-    <p><a href="{{ url_for('ui_payment_form', order_id=order.id) }}">Passer au paiement</a></p>
+    <div class="actions">
+      <a class="button-link" href="{{ url_for('ui_payment_form', order_id=order.id) }}">Passer au paiement</a>
+    </div>
   {% endif %}
+  </section>
 
-  <p><a href="{{ url_for('ui_order_form') }}">Créer une autre commande</a></p>
+  <div class="actions">
+    <a href="{{ url_for('ui_order_form') }}">Créer une autre commande</a>
+  </div>
+  </main>
 </body>
 </html>

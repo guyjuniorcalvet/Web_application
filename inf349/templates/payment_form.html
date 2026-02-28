@@ -4,47 +4,56 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Paiement de la commande</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
 </head>
 <body>
+  <main class="container">
   <h1>Paiement</h1>
 
-  <p>Commande #{{ order.id }}</p>
-  <p>Produit: {{ product.name }}</p>
-  <p>Montant à payer (produits + livraison): {{ order.total_price + (order.shipping_price or 0) }}</p>
+  <section class="order-summary">
+    <p>Commande #{{ order.id }}</p>
+    <p>Produit: {{ product.name }}</p>
+    <p>Montant à payer (produits + livraison): {{ order.total_price + (order.shipping_price or 0) }}</p>
+  </section>
 
   {% if error %}
-    <p>{{ error }}</p>
+    <p class="error">{{ error }}</p>
   {% endif %}
 
   <form method="post" action="{{ url_for('ui_payment_form', order_id=order.id) }}" novalidate>
-    <div>
+    <div class="form-grid">
+    <div class="field-row full">
       <label for="name">Nom sur la carte</label>
       <input id="name" name="name" type="text" autocomplete="cc-name" required>
     </div>
 
-    <div>
+    <div class="field-row full">
       <label for="number">Numéro de carte</label>
       <input id="number" name="number" type="text" inputmode="numeric" autocomplete="cc-number" required>
     </div>
 
-    <div>
+    <div class="field-row">
       <label for="expiration_month">Mois d'expiration</label>
       <input id="expiration_month" name="expiration_month" type="number" min="1" max="12" autocomplete="cc-exp-month" required>
     </div>
 
-    <div>
+    <div class="field-row">
       <label for="expiration_year">Année d'expiration</label>
       <input id="expiration_year" name="expiration_year" type="number" min="2000" autocomplete="cc-exp-year" required>
     </div>
 
-    <div>
+    <div class="field-row full">
       <label for="cvv">CVV</label>
       <input id="cvv" name="cvv" type="password" inputmode="numeric" pattern="[0-9]{3}" autocomplete="cc-csc" required>
+    </div>
     </div>
 
     <button type="submit">Payer la commande</button>
   </form>
 
-  <p><a href="{{ url_for('ui_order_confirmation', order_id=order.id) }}">Retour à la confirmation</a></p>
+  <div class="actions">
+    <a href="{{ url_for('ui_order_confirmation', order_id=order.id) }}">Retour à la confirmation</a>
+  </div>
+  </main>
 </body>
 </html>

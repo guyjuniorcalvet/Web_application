@@ -4,16 +4,19 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Formulaire d'achat</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
 </head>
 <body>
+  <main class="container">
   <h1>Formulaire d'achat</h1>
 
   {% if error %}
-    <p>{{ error }}</p>
+    <p class="error">{{ error }}</p>
   {% endif %}
 
   <form method="post" action="{{ url_for('ui_order_form') }}">
-    <div>
+    <div class="form-grid">
+    <div class="field-row full">
       <label for="product_id">Produit</label>
       <select id="product_id" name="product_id" required>
         <option value="">-- Sélectionner un produit --</option>
@@ -27,35 +30,35 @@
       </select>
     </div>
 
-    <div>
+    <div class="field-row">
       <label for="quantity">Quantité</label>
       <input id="quantity" name="quantity" type="number" min="1" value="1" required>
     </div>
     
-      <div>
+      <div class="field-row">
         <label for="email">Courriel</label>
         <input id="email" name="email" type="email" required>
       </div>
     
-      <fieldset>
+      <fieldset class="full">
         <legend>Adresse de livraison</legend>
-        <div>
+        <div class="field-row">
           <label for="shipping_country">Pays</label>
           <input id="shipping_country" name="shipping_country" type="text" required>
         </div>
-        <div>
+        <div class="field-row">
           <label for="shipping_address">Adresse</label>
           <input id="shipping_address" name="shipping_address" type="text" required>
         </div>
-        <div>
+        <div class="field-row">
           <label for="shipping_postal_code">Code postal</label>
           <input id="shipping_postal_code" name="shipping_postal_code" type="text" required>
         </div>
-        <div>
+        <div class="field-row">
           <label for="shipping_city">Ville</label>
           <input id="shipping_city" name="shipping_city" type="text" required>
         </div>
-        <div>
+        <div class="field-row">
           <label for="shipping_province">Province</label>
           <select id="shipping_province" name="shipping_province" required>
             <option value="">-- Sélectionner une province --</option>
@@ -67,8 +70,10 @@
           </select>
         </div>
       </fieldset>
+    </div>
 
     <button type="submit">Valider le panier</button>
   </form>
+  </main>
 </body>
 </html>

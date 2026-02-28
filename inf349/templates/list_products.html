@@ -4,15 +4,15 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Boutique - Liste de produits</title>
- 
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
 </head>
 <body>
-  <header class="page-header">
-    <h1>Notre sélection de produits </h1>
-    <a href="{{ url_for('ui_order_form') }}">Demarrer une commande</a>
-  </header>
+  <main class="container">
+    <header class="page-header">
+      <h1>Notre sélection de produits</h1>
+      <a href="{{ url_for('ui_order_form') }}">Démarrer une commande</a>
+    </header>
 
-  <main>
     {% if products %}
       <section class="product-list" aria-label="Liste des produits">
         {% for product in products %}
@@ -23,15 +23,14 @@
               {% endif %}
             </div>
 
-            <div class="product-info">
+            <div class="product-body">
                 <h2>{{ product.name }}</h2>
                 {% if product.in_stock %}
                   <span class="stock-status in-stock">En stock</span>
                 {% else %}
                   <span class="stock-status out-of-stock">Rupture de stock</span>
                 {% endif %}
-              </div>
-              <p>{{ product.description }}</p>
+              <p class="product-meta">{{ product.description }}</p>
               <p>Poids: {{ product.weight }} g</p>
               <p>Prix: ${{ "%.2f" | format(product.price) }}</p>
             </div>
@@ -48,7 +47,8 @@
           </article>
         {% endfor %}
       </section>
-    
+    {% else %}
+      <p>Aucun produit disponible pour le moment.</p>
     {% endif %}
   </main>
 </body>

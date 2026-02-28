@@ -1,7 +1,8 @@
 from flask import Flask, jsonify, render_template, request, redirect, url_for
 import os
-import requests
-import click
+import json
+from urllib import error as urllib_error
+from urllib import request as urllib_request
 from peewee import *
 from inf349.taxes import calculate_total_with_tax, TAX_RATES
 from inf349.shipping import calculate_shipping_price
@@ -171,7 +172,63 @@ def extract_error_name(payload):
     return "Une erreur est survenue pendant le paiement."
 
 
+class RemoteHTTPResponse:
+    def __init__(self, status_code, text):
+        self.status_code = status_code
+        self.text = text
+
+    def json(self):
+        return json.loads(self.text) if self.text else {}
+
+
+def http_post_json(url, payload, timeout=10):
+    body = json.dumps(payload).encode("utf-8")
+    req = urllib_request.Request(
+        url,
+        data=body,
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    try:
+        with urllib_request.urlopen(req, timeout=timeout) as response:
+            status_code = response.getcode()
+            text = response.read().decode("utf-8")
+            return RemoteHTTPResponse(status_code, text)
+    except urllib_error.HTTPError as exc:
+        text = exc.read().decode("utf-8") if exc.fp else ""
+        return RemoteHTTPResponse(exc.code, text)
+
+
+def http_get_json(url, timeout=10):
+    req = urllib_request.Request(url, method="GET")
+    with urllib_request.urlopen(req, timeout=timeout) as response:
+        text = response.read().decode("utf-8")
+        return json.loads(text) if text else {}
+
+
+def fetch_products_from_remote():
+    products_url = 'http://dimensweb.uqac.ca/~jgnault/shops/products/'
+    payload = http_get_json(products_url, timeout=10)
+    return payload.get('products', [])
+
+
+def bootstrap_products_if_needed():
+    db.connect(reuse_if_open=True)
+    try:
+        db.create_tables([Product, Order], safe=True)
+        if Product.select().count() == 0:
+            products_data = fetch_products_from_remote()
+            with db.atomic():
+                for product_data in products_data:
+                    Product.create(**product_data)
+            print(f"Successfully fetched and stored {len(products_data)} products.")
+    finally:
+        db.close()
+
+
 def process_payment(order, credit_card_info):
+    if order.paid:
+        return already_paid_response()
     
     #Valider que la carte de crédit est un dictionnaire
     if not isinstance(credit_card_info,dict):
@@ -220,7 +277,7 @@ def process_payment(order, credit_card_info):
            }
        }), 422)
   
-    clean_number = number.replace(" ","" )
+    formatted_number = " ".join(number.split())
 
     # Validation du champ expiration_year
     try:
@@ -279,7 +336,7 @@ def process_payment(order, credit_card_info):
     payment_request = {
         "credit_card": {
             "name": name.strip(),
-            "number": clean_number,
+            "number": formatted_number,
             "expiration_year": expiration_year,
             "expiration_month": expiration_month,
             "cvv": cvv
@@ -288,9 +345,9 @@ def process_payment(order, credit_card_info):
     }
     
     try:
-        response = requests.post(
-            'http://dimprojetu.uqac.ca/~jgnault/shops/pay/',
-            json=payment_request,
+        response = http_post_json(
+            'http://domprojetu.uqac.ca/~jgnault/shops/pay/',
+            payment_request,
             timeout=10
         )
         print(f"Payment service response: {response.status_code} {response.text}") # Pour identifier le code d'erreur sur la console 
@@ -320,9 +377,33 @@ def process_payment(order, credit_card_info):
             return None  
 
         elif response.status_code == 422:
-            # La carte de crédit a été refusée 
+            # La carte de crédit a été refusée
             error_response = response.json()
-            return (jsonify(error_response), 422)
+
+            card_error_code = None
+            if isinstance(error_response, dict):
+                card_error_code = (
+                    error_response.get("errors", {})
+                    .get("credit_card", {})
+                    .get("code")
+                )
+
+            if card_error_code in {"card_declined", "card-declined"}:
+                card_error_name = (
+                    error_response.get("errors", {})
+                    .get("credit_card", {})
+                    .get("name")
+                )
+                return jsonify({
+                    "errors": {
+                        "credit_card": {
+                            "code": "card-declined",
+                            "name": card_error_name or "La carte de crédit a été refusée"
+                        }
+                    }
+                }), 422
+
+            return jsonify(error_response), 422
         else:
             # Erreur  du service de paiement 
             return (jsonify({
@@ -334,7 +415,7 @@ def process_payment(order, credit_card_info):
                 }
             }), 500)
 
-    except requests.exceptions.RequestException:
+    except (urllib_error.URLError, TimeoutError, ValueError, json.JSONDecodeError):
         # Erreur de communication avec le service de paiement
         return (jsonify({
             "errors": {
@@ -367,6 +448,12 @@ def create_app(test_config=None):
         os.makedirs(app.instance_path)
     except OSError:
         pass
+
+    if not app.config.get("TESTING"):
+        try:
+            bootstrap_products_if_needed()
+        except Exception as exc:
+            print(f"Error bootstrapping products: {exc}")
 
     @app.errorhandler(422)
     def handle_422_error(error):
@@ -694,7 +781,7 @@ def create_app(test_config=None):
 
         return render_template('order_form.html', products=products)
 
-    @app.route('/ui/order/<int:order_id>')
+    @app.route('/ui/order/<int:order_id>', methods=['GET', 'POST'])
     def ui_order_confirmation(order_id):
         try:
             order = Order.get_by_id(order_id)
@@ -702,10 +789,41 @@ def create_app(test_config=None):
         except (Order.DoesNotExist, Product.DoesNotExist):
             return "Commande introuvable.", 404
 
+        payment_error = None
+
+        if request.method == 'POST':
+            credit_card_info = {
+                "name": request.form.get('credit_card_name', '').strip(),
+                "number": request.form.get('credit_card_number', '').strip(),
+                "expiration_year": request.form.get('credit_card_expiration_year', '').strip(),
+                "expiration_month": request.form.get('credit_card_expiration_month', '').strip(),
+                "cvv": request.form.get('credit_card_cvv', '').strip(),
+            }
+
+            payment_result = process_payment(order, credit_card_info)
+            if payment_result is None:
+                return redirect(url_for('ui_order_confirmation', order_id=order.id, payment='success'))
+
+            error_response, status_code = payment_result
+            error_payload = error_response.get_json(silent=True) or {}
+
+            if error_payload.get('errors', {}).get('order', {}).get('code') == 'already-paid':
+                payment_error = "Cette commande est déjà payée."
+            elif status_code == 422 and error_payload.get('errors', {}).get('credit_card', {}).get('code') == 'card-declined':
+                payment_error = "Paiement refusé : la carte de crédit a été refusée."
+            elif status_code == 422:
+                payment_error = "Paiement refusé : vérifiez les informations de la carte."
+            else:
+                payment_error = "Le paiement est indisponible pour le moment."
+
+        payment_success = request.args.get('payment') == 'success'
+
         return render_template(
             'order_confirmation.html',
             order=order,
-            product=product
+            product=product,
+            payment_error=payment_error,
+            payment_success=payment_success
         )
 
     @app.route('/ui/order/<int:order_id>/payment', methods=['GET', 'POST'])
@@ -763,10 +881,12 @@ def create_app(test_config=None):
             return redirect(url_for('ui_order_confirmation', order_id=order.id))
 
         return render_template('payment_form.html', order=order, product=product)
+    @app.cli.command('init-db')
+    def init_db_command():
+        """Clear existing data and create new tables."""
+        init_db()
+        print('Initialized the database.')
 
-
-    # Register the init-db command
-    app.cli.add_command(init_db_command)
     return app
 
 def init_db():
@@ -777,24 +897,14 @@ def init_db():
     
     # Fetch products from remote service and populate the database
     try:
-        products_url = 'http://dimensweb.uqac.ca/~jgnault/shops/products/'
-        response = requests.get(products_url)
-        response.raise_for_status()  # Raise an exception for bad status codes
-        products_data = response.json().get('products', [])
+        products_data = fetch_products_from_remote()
         
         with db.atomic():
             for product_data in products_data:
                 Product.create(**product_data)
         print(f"Successfully fetched and stored {len(products_data)} products.")
 
-    except requests.exceptions.RequestException as e:
+    except (urllib_error.URLError, TimeoutError, ValueError, json.JSONDecodeError) as e:
         print(f"Error fetching products: {e}")
     
     db.close()
-
-
-@click.command('init-db')
-def init_db_command():
-    """Clear existing data and create new tables."""
-    init_db()
-    click.echo('Initialized the database.')
