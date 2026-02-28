@@ -179,6 +179,33 @@ def test_put_order_client_rejects_mixed_order_and_credit_card_payload(client):
     }
 
 
+def test_put_order_client_rejects_invalid_province(client):
+    response = client.put(
+        "/order/1",
+        json={
+            "order": {
+                "email": "john@example.com",
+                "shipping_information": {
+                    "country": "Canada",
+                    "address": "A",
+                    "postal_code": "B",
+                    "city": "C",
+                    "province": "XX",
+                },
+            }
+        },
+    )
+    assert response.status_code == 422
+    assert response.get_json() == {
+        "errors": {
+            "order": {
+                "code": "missing-fields",
+                "name": "Il manque un ou plusieurs champs qui sont obligatoires",
+            }
+        }
+    }
+
+
 def test_put_order_rejects_empty_payload(client):
     response = client.put("/order/1", json={})
     assert response.status_code == 422

@@ -9,11 +9,20 @@ TAX_RATES = {
     'BC': 0.12,  # Colombie-Britannique: 12%
     'NS': 0.14,  # Nouvelle-Écosse: 14%
 }
+
+
+def normalize_province_code(province):
+    if not isinstance(province, str):
+        raise ValueError("Le code de province doit être une chaîne de caractères")
+    return province.strip().upper()
+
+
 # Fonction pour obtenir le taux de la taxe selon la province
 def get_tax_rate(province):
-    if province not in TAX_RATES:
+    province_code = normalize_province_code(province)
+    if province_code not in TAX_RATES:
         raise ValueError(f"Province '{province}' non reconnue. Provinces valides: {list(TAX_RATES.keys())}")
-    return TAX_RATES[province]
+    return TAX_RATES[province_code]
 
 
 # Fonction pour calculer le montant de la taxe 

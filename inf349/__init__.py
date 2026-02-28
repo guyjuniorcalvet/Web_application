@@ -3,7 +3,7 @@ import os
 import requests
 import click
 from peewee import *
-from inf349.taxes import calculate_total_with_tax
+from inf349.taxes import calculate_total_with_tax, TAX_RATES
 from inf349.shipping import calculate_shipping_price
 
 # Database setup
@@ -539,12 +539,16 @@ def create_app(test_config=None):
                 if not isinstance(value, str) or not value.strip():
                     return missing_order_fields_response()
 
+            province_code = shipping_information["province"].strip().upper()
+            if province_code not in TAX_RATES:
+                return missing_order_fields_response()
+
             order.email = email.strip()
             order.shipping_country = shipping_information["country"].strip()
             order.shipping_address = shipping_information["address"].strip()
             order.shipping_postal_code = shipping_information["postal_code"].strip()
             order.shipping_city = shipping_information["city"].strip()
-            order.shipping_province = shipping_information["province"].strip()
+            order.shipping_province = province_code
 
             product = Product.get_or_none(Product.id == order.product_id)
             if product:
@@ -592,7 +596,7 @@ def create_app(test_config=None):
             shipping_address = request.form.get('shipping_address', '').strip()
             shipping_postal_code = request.form.get('shipping_postal_code', '').strip()
             shipping_city = request.form.get('shipping_city', '').strip()
-            shipping_province = request.form.get('shipping_province', '').strip()
+            shipping_province = request.form.get('shipping_province', '').strip().upper()
 
             # Validation des champs obligatoires
             if not all([product_id, quantity, email, shipping_country, shipping_address, shipping_postal_code, shipping_city, shipping_province]):
@@ -617,6 +621,13 @@ def create_app(test_config=None):
                     'order_form.html',
                     products=products,
                     error="La quantité doit être supérieure ou égale à 1."
+                ), 422
+
+            if shipping_province not in TAX_RATES:
+                return render_template(
+                    'order_form.html',
+                    products=products,
+                    error="La province sélectionnée est invalide."
                 ), 422
 
             try:

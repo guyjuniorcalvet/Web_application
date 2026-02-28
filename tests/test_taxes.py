@@ -23,6 +23,9 @@ class Test_get_tax_rate:
     def test_nouvelle_ecosse_tax_rate(self):
         assert get_tax_rate('NS') == 0.14
 
+    def test_tax_rate_accepts_lowercase_codes(self):
+        assert get_tax_rate('qc') == 0.15
+
     # Test unitaire pour la gestion des erreurs 
     def test_invalid_province(self):
         with pytest.raises(ValueError):
@@ -46,6 +49,9 @@ class Test_calculate_taxes:
 
     def test_calculate_taxes_nouvelle_ecosse(self):
         assert calculate_taxes(100.0, 'NS') == 14.0
+
+    def test_calculate_taxes_accepts_lowercase_codes(self):
+        assert calculate_taxes(100.0, 'on') == 13.0
     
     # Test unitaire pour la gestion des erreurs et des exceptions
     def test_calculate_taxes_zero_subtotal(self):
@@ -76,6 +82,9 @@ class Test_calculate_total_with_tax:
     
     def test_total_with_tax_nouvelle_ecosse(self):
         assert calculate_total_with_tax(100.0, 'NS') == 114.0
+
+    def test_total_with_tax_accepts_lowercase_codes(self):
+        assert calculate_total_with_tax(100.0, 'ab') == 105.0
     
     #Test unitaire pour la gestion des erreurs 
     def test_total_with_tax_zero_subtotal(self):
@@ -86,4 +95,3 @@ class Test_calculate_total_with_tax:
             calculate_total_with_tax(100.0, 'XX') 
    
     
-
