@@ -123,6 +123,28 @@ def missing_order_fields_response():
     }), 422
 
 
+def missing_customer_information_for_payment_response():
+    return jsonify({
+        "errors": {
+            "order": {
+                "code": "missing-fields",
+                "name": "Les informations du client sont nécessaire avant d'appliquer une carte de crédit"
+            }
+        }
+    }), 422
+
+
+def already_paid_response():
+    return jsonify({
+        "errors": {
+            "order": {
+                "code": "already-paid",
+                "name": "La commande a déjà été payée."
+            }
+        }
+    }), 422
+
+
 def has_complete_customer_information(order):
     return all([
         order.email,
@@ -470,75 +492,86 @@ def create_app(test_config=None):
             }), 404
 
         payload = request.get_json(silent=True) or {}
-        if set(payload.keys()) != {"order"}:
+        has_order_payload = "order" in payload
+        has_credit_card_payload = "credit_card" in payload
+
+        # payment and customer update must be done in separate calls
+        if has_order_payload == has_credit_card_payload:
             return missing_order_fields_response()
 
-        order_payload = payload.get('order')
-        if not isinstance(order_payload, dict):
-            return missing_order_fields_response()
-
-        allowed_order_fields = {"email", "shipping_information", "credit_card"}
-        if set(order_payload.keys()) - allowed_order_fields:
-            return missing_order_fields_response()
-
-        email = order_payload.get('email')
-        shipping_information = order_payload.get('shipping_information')
-        credit_card_info = order_payload.get('credit_card')
-
-        if not isinstance(email, str) or not email.strip():
-            return missing_order_fields_response()
-
-        if not isinstance(shipping_information, dict):
-            return missing_order_fields_response()
-
-        required_shipping_fields = {
-            "country",
-            "address",
-            "postal_code",
-            "city",
-            "province",
-        }
-        if required_shipping_fields - set(shipping_information.keys()):
-            return missing_order_fields_response()
-
-        for field in required_shipping_fields:
-            value = shipping_information.get(field)
-            if not isinstance(value, str) or not value.strip():
+        if has_order_payload:
+            if set(payload.keys()) != {"order"}:
                 return missing_order_fields_response()
 
-        order.email = email.strip()
-        order.shipping_country = shipping_information["country"].strip()
-        order.shipping_address = shipping_information["address"].strip()
-        order.shipping_postal_code = shipping_information["postal_code"].strip()
-        order.shipping_city = shipping_information["city"].strip()
-        order.shipping_province = shipping_information["province"].strip()
-        
-        # Calculate shipping price and taxes
-        product = Product.get_or_none(Product.id == order.product_id)
-        if product:
-            # Calculate shipping price based on total weight
-            total_weight = product.weight * order.quantity
-            try:
-                order.shipping_price = calculate_shipping_price(total_weight)
-            except ValueError:
-                order.shipping_price = 0
-            
-            # Calculate total price with tax based on province
-            province = order.shipping_province
-            try:
-                subtotal = order.total_price + order.shipping_price
-                order.total_price_tax = calculate_total_with_tax(subtotal, province) 
-            except ValueError:
-                # If province is not recognized, keep the basic total
-                order.total_price_tax = order.total_price + order.shipping_price
-        
-        order.save()
+            order_payload = payload.get('order')
+            if not isinstance(order_payload, dict):
+                return missing_order_fields_response()
 
-        # On procède au paiement si les informations de la carte de crédit sont fournies
-        if credit_card_info is not None:
-            payment_error = process_payment(order, credit_card_info)
-            if payment_error is not None:
-                return payment_error
+            if set(order_payload.keys()) != {"email", "shipping_information"}:
+                return missing_order_fields_response()
+
+            email = order_payload.get('email')
+            shipping_information = order_payload.get('shipping_information')
+
+            if not isinstance(email, str) or not email.strip():
+                return missing_order_fields_response()
+
+            if not isinstance(shipping_information, dict):
+                return missing_order_fields_response()
+
+            required_shipping_fields = {
+                "country",
+                "address",
+                "postal_code",
+                "city",
+                "province",
+            }
+            if required_shipping_fields - set(shipping_information.keys()):
+                return missing_order_fields_response()
+
+            for field in required_shipping_fields:
+                value = shipping_information.get(field)
+                if not isinstance(value, str) or not value.strip():
+                    return missing_order_fields_response()
+
+            order.email = email.strip()
+            order.shipping_country = shipping_information["country"].strip()
+            order.shipping_address = shipping_information["address"].strip()
+            order.shipping_postal_code = shipping_information["postal_code"].strip()
+            order.shipping_city = shipping_information["city"].strip()
+            order.shipping_province = shipping_information["province"].strip()
+
+            product = Product.get_or_none(Product.id == order.product_id)
+            if product:
+                total_weight = product.weight * order.quantity
+                try:
+                    order.shipping_price = calculate_shipping_price(total_weight)
+                except ValueError:
+                    order.shipping_price = 0
+
+                province = order.shipping_province
+                try:
+                    subtotal = order.total_price + order.shipping_price
+                    order.total_price_tax = calculate_total_with_tax(subtotal, province)
+                except ValueError:
+                    order.total_price_tax = order.total_price + order.shipping_price
+
+            order.save()
+            return jsonify({"order": serialize_order(order)}), 200
+
+        # credit_card payload mode
+        if set(payload.keys()) != {"credit_card"}:
+            return missing_order_fields_response()
+
+        if order.paid:
+            return already_paid_response()
+
+        if not has_complete_customer_information(order):
+            return missing_customer_information_for_payment_response()
+
+        payment_error = process_payment(order, payload.get("credit_card"))
+        if payment_error is not None:
+            return payment_error
 
         return jsonify({"order": serialize_order(order)}), 200
 
