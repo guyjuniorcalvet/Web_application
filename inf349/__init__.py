@@ -386,6 +386,11 @@ def create_app(test_config=None):
     @app.route('/')
     def list_products():
         products = list(Product.select().dicts())
+        return jsonify({'products': products})
+
+    @app.route('/ui/products')
+    def ui_list_products():
+        products = list(Product.select().dicts())
         return render_template('list_products.html', products=products)
     
     @app.route('/api/products')
