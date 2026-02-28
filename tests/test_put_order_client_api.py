@@ -73,6 +73,8 @@ def test_put_order_client_success_updates_customer_fields(client):
         "province": "QC",
     }
     assert order["product"] == {"id": 1, "quantity": 2}
+    assert order["shipping_price"] == 10.0
+    assert order["total_price_tax"] == 23.0
 
 
 def test_put_order_client_not_found_returns_404(client):

@@ -139,7 +139,10 @@ def test_put_order_payment_rejects_when_order_is_already_paid(client):
 
 
 def test_put_order_payment_success_persists_card_and_transaction(client, monkeypatch):
+    captured_payload = {}
+
     def fake_post(*args, **kwargs):
+        captured_payload["json"] = kwargs.get("json", {})
         return FakeResponse(
             200,
             {
@@ -153,7 +156,7 @@ def test_put_order_payment_success_persists_card_and_transaction(client, monkeyp
                 "transaction": {
                     "id": "txn_success_1",
                     "success": True,
-                    "amount_charged": 2300,
+                    "amount_charged": 2500,
                 },
             },
         )
@@ -175,8 +178,9 @@ def test_put_order_payment_success_persists_card_and_transaction(client, monkeyp
     assert order["transaction"] == {
         "id": "txn_success_1",
         "success": True,
-        "amount_charged": 2300,
+        "amount_charged": 2500,
     }
+    assert captured_payload["json"]["amount_charged"] == 2500
 
 
 def test_put_order_payment_propagates_remote_422_error(client, monkeypatch):

@@ -12,7 +12,9 @@
   <p>Produit: {{ product.name }}</p>
   <p>Quantité: {{ order.quantity }}</p>
   <p>Sous-total du panier: {{ order.total_price }}</p>
-  <p>Montant avec livraison et taxes: {{ order.total_price_tax }}</p>
+  <p>Frais de livraison: {{ order.shipping_price }}</p>
+  <p>Total avec taxes (hors livraison): {{ order.total_price_tax }}</p>
+  <p>Montant à payer (produits + livraison): {{ order.total_price + (order.shipping_price or 0) }}</p>
 
   {% if order.paid %}
     <p>Statut du paiement: payée</p>

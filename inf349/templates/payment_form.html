@@ -10,7 +10,7 @@
 
   <p>Commande #{{ order.id }}</p>
   <p>Produit: {{ product.name }}</p>
-  <p>Montant à payer: {{ order.total_price_tax }}</p>
+  <p>Montant à payer (produits + livraison): {{ order.total_price + (order.shipping_price or 0) }}</p>
 
   {% if error %}
     <p>{{ error }}</p>

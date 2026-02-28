@@ -262,8 +262,19 @@ def process_payment(order, credit_card_info):
             }
         }), 422)
         
-    # Convertir le prix total des taxes en cents
-    amount_charged_cents = int(round(order.total_price_tax * 100))
+    # Le service distant attend le montant total facture (produits + livraison), en cents.
+    shipping_price = order.shipping_price
+    if shipping_price is None:
+        product = Product.get_or_none(Product.id == order.product_id)
+        if product is not None:
+            try:
+                shipping_price = calculate_shipping_price(product.weight * order.quantity)
+            except ValueError:
+                shipping_price = 0
+        else:
+            shipping_price = 0
+
+    amount_charged_cents = int(round((order.total_price + shipping_price) * 100))
 
     payment_request = {
         "credit_card": {
@@ -453,11 +464,17 @@ def create_app(test_config=None):
             }), 422
 
         total_price = product.price * quantity
+        try:
+            shipping_price = calculate_shipping_price(product.weight * quantity)
+        except ValueError:
+            shipping_price = 0
+
         order = Order.create(
             product_id=product.id,
             quantity=quantity,
             total_price=total_price,
-            total_price_tax=total_price
+            total_price_tax=total_price,
+            shipping_price=shipping_price,
         )
 
         response = jsonify({})
@@ -560,10 +577,9 @@ def create_app(test_config=None):
 
                 province = order.shipping_province
                 try:
-                    subtotal = order.total_price + order.shipping_price
-                    order.total_price_tax = calculate_total_with_tax(subtotal, province)
+                    order.total_price_tax = calculate_total_with_tax(order.total_price, province)
                 except ValueError:
-                    order.total_price_tax = order.total_price + order.shipping_price
+                    order.total_price_tax = order.total_price
 
             order.save()
             return jsonify({"order": serialize_order(order)}), 200
@@ -654,12 +670,11 @@ def create_app(test_config=None):
             except Exception:
                 shipping_price = 0
 
-            # Calcul du total avec taxes
+            # Calcul du total avec taxes (hors livraison)
             try:
-                subtotal = total_price + shipping_price
-                total_price_tax = calculate_total_with_tax(subtotal, shipping_province)
+                total_price_tax = calculate_total_with_tax(total_price, shipping_province)
             except Exception:
-                total_price_tax = total_price + shipping_price
+                total_price_tax = total_price
 
             order = Order.create(
                 product_id=product.id,
