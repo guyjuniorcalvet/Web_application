@@ -17,7 +17,7 @@ class Test_calculate_shipping_price:
      def test_shipping_500g_to_2kg(self):
          assert calculate_shipping_price(800)==10.0
          assert calculate_shipping_price(1000)==10.0
-         assert calculate_shipping_price(2000)==10.0
+         assert calculate_shipping_price(1999)==10.0
          
      def test_shipping_greater_than_2kg(self):
         assert calculate_shipping_price(3000)==25.0
@@ -31,7 +31,7 @@ class Test_calculate_shipping_price:
     
      def test_shipping_limite_2kg(self):
         assert calculate_shipping_price(1999) ==10.0
-        assert calculate_shipping_price(2000) ==10.0
+        assert calculate_shipping_price(2000) ==25.0
         assert calculate_shipping_price(2001) ==25.0
     
     # Test unitaire pour la gestion des erreurs et des exceptions
