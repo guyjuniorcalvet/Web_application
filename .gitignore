@@ -20,5 +20,8 @@ venv.bak/
 .vscode/
 .idea/
 
+# Coverage
+.coverage
+
 # macOS
 .DS_Store
