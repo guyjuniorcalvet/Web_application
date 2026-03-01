@@ -230,7 +230,6 @@ def process_payment(order, credit_card_info):
     if order.paid:
         return already_paid_response()
     
-    #Valider que la carte de crédit est un dictionnaire
     if not isinstance(credit_card_info,dict):
         return (jsonify({
             "errors": {
@@ -241,7 +240,7 @@ def process_payment(order, credit_card_info):
             }
         })), 422
 
-    # Valider des champs requis sont présents et valides
+    # Validation des champs obligatoires pour la carte de crédit
     required_fields = {"name", "number", "expiration_year", "expiration_month", "cvv"}
     if not required_fields.issubset(credit_card_info.keys()):
         return (jsonify({
@@ -292,7 +291,7 @@ def process_payment(order, credit_card_info):
             }
         }), 422)
         
-    # Validation du champs expiration_month
+    # Validation du champ expiration_month
     try: 
         expiration_month= int(credit_card_info.get('expiration_month'))
         if expiration_month < 1 or expiration_month > 12:
@@ -346,15 +345,13 @@ def process_payment(order, credit_card_info):
     
     try:
         response = http_post_json(
-            'http://domprojetu.uqac.ca/~jgnault/shops/pay/',
+            'http://dimensweb.uqac.ca/~jgnault/shops/pay/',
             payment_request,
             timeout=10
         )
-        print(f"Payment service response: {response.status_code} {response.text}") # Pour identifier le code d'erreur sur la console 
-        # Si la carte de crédit est acceptée
-        if response.status_code == 200:
         
-            # Paiment  réussi
+        if response.status_code == 200:
+            # Paiement réussi
             payment_response = response.json()
             
             # Extraction des informations de la transaction
@@ -410,7 +407,7 @@ def process_payment(order, credit_card_info):
                 "errors": {
                     "payment": {
                         "code": "service-error",
-                        "name": "Le service de paiement a rencontre une erreur"
+                        "name": "Le service de paiement a rencontré une erreur"
                     }
                 }
             }), 500)
