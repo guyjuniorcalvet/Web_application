@@ -1,6 +1,9 @@
 from flask import Flask, jsonify, render_template, request, redirect, url_for
 import os
 import json
+import traceback
+from datetime import datetime
+import logging
 from urllib import error as urllib_error
 from urllib import request as urllib_request
 from peewee import *
@@ -181,12 +184,15 @@ class RemoteHTTPResponse:
         return json.loads(self.text) if self.text else {}
 
 
-def http_post_json(url, payload, timeout=10):
+def http_post_json(url, payload, timeout=10, extra_headers=None):
     body = json.dumps(payload).encode("utf-8")
+    headers = {"Content-Type": "application/json"}
+    if isinstance(extra_headers, dict):
+        headers.update(extra_headers)
     req = urllib_request.Request(
         url,
         data=body,
-        headers={"Content-Type": "application/json"},
+        headers=headers,
         method="POST",
     )
     try:
@@ -342,24 +348,56 @@ def process_payment(order, credit_card_info):
         },
         "amount_charged": amount_charged_cents
     }
-    
+    # Use Python logging instead of temp file logging
+    logger = logging.getLogger('inf349.payment')
+    # Prepare masked debug info
+    masked_number = formatted_number
+    try:
+        num = formatted_number.replace(' ', '')
+        masked_number = f"{num[:4]}...{num[-4:]}"
+    except Exception:
+        pass
+
+    debug_request_info = {k: v for k, v in payment_request.items() if k != 'credit_card'}
+    logger.info('Sending payment_request to remote service: %s', json.dumps(debug_request_info, ensure_ascii=False))
+    logger.info('credit_card.name=%s, credit_card.number=%s', payment_request['credit_card'].get('name'), masked_number)
+
+    # Try sending explicit JSON headers (Accept) and a User-Agent
+    extra_headers = {
+        'Accept': 'application/json',
+        'User-Agent': 'inf349-app/1.0'
+    }
+    # Log headers (mask Authorization if present)
+    try:
+        safe_headers = {k: ('<redacted>' if k.lower() == 'authorization' else v) for k, v in extra_headers.items()}
+        logger.debug('Outgoing headers: %s', json.dumps(safe_headers, ensure_ascii=False))
+    except Exception:
+        logger.debug('Outgoing headers could not be serialized')
+
     try:
         response = http_post_json(
             'http://dimensweb.uqac.ca/~jgnault/shops/pay/',
             payment_request,
-            timeout=10
+            timeout=10,
+            extra_headers=extra_headers,
         )
-        
+
+        # Log response status and body
+        try:
+            resp_text = response.text if hasattr(response, 'text') else ''
+        except Exception:
+            resp_text = '<unable to read response.text>'
+        logger.info('Payment service responded: status=%s', getattr(response, 'status_code', None))
+        logger.debug('Payment response body: %s', resp_text)
+
         if response.status_code == 200:
             # Paiement réussi
             payment_response = response.json()
-            
+
             # Extraction des informations de la transaction
-            transaction =  payment_response.get('transaction', {})
+            transaction = payment_response.get('transaction', {})
             response_card = payment_response.get('credit_card', {})
 
-            
-            
             order.paid = True
             order.credit_card_name = response_card.get('name')
             order.credit_card_first_digits = response_card.get('first_digits')
@@ -371,7 +409,7 @@ def process_payment(order, credit_card_info):
             order.transaction_amount_charged = transaction.get('amount_charged')
 
             order.save()
-            return None  
+            return None
 
         elif response.status_code == 422:
             # La carte de crédit a été refusée
@@ -402,18 +440,21 @@ def process_payment(order, credit_card_info):
 
             return jsonify(error_response), 422
         else:
-            # Erreur  du service de paiement 
+            # Erreur du service de paiement : propager un code 503 (service indisponible)
+            logger.warning('Unexpected payment service status: %s', getattr(response, 'status_code', None))
+
             return (jsonify({
                 "errors": {
                     "payment": {
                         "code": "service-error",
-                        "name": "Le service de paiement a rencontré une erreur"
+                        "name": f"Le service de paiement a rencontré une erreur (status={getattr(response, 'status_code', None)})"
                     }
                 }
-            }), 500)
+            }), 503)
 
-    except (urllib_error.URLError, TimeoutError, ValueError, json.JSONDecodeError):
-        # Erreur de communication avec le service de paiement
+    except (urllib_error.URLError, TimeoutError, ValueError, json.JSONDecodeError) as exc:
+        logger = logging.getLogger('inf349.payment')
+        logger.exception('Exception while contacting payment service')
         return (jsonify({
             "errors": {
                 "payment": {
