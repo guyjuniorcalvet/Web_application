@@ -1,6 +1,7 @@
 # Web_application
 
 Application web Flask pour le cours INF349 – Web avancé.
+Collaborateurs : Guy Junior CALVET, Marie-Anne Randrianarivony, Paul Yvan SEKA
 
 ## Prérequis
 
