@@ -1,6 +1,6 @@
 # Web_application
 
-Application web e-commerce développée avec **Flask** dans le cadre du cours **INF349 – Web avancé** à l'UQAC.
+Application web e-commerce développée avec **Flask** dans le cadre du cours **INF349 – Technologies Web avancé**-INF349.
 
 **Collaborateurs** : Guy Junior CALVET · Marie-Anne Randrianarivony · Paul Yvan SEKA
 
