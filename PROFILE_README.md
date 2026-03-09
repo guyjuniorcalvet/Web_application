@@ -70,12 +70,12 @@ I'm a passionate Computer Science student at **Université du Québec à Chicout
 
 ## 🚀 Featured Projects
 
-### 🌐 [Web Application – E-commerce (Flask)](https://github.com/guyjuniorcalvet/Web_application)
+### 🌐 [Web Application - E-commerce (Flask)](https://github.com/guyjuniorcalvet/Web_application)
 > Full-stack e-commerce web application built with **Flask**, **Peewee ORM**, and **SQLite** for the INF349 Advanced Web Technologies course. Features a REST API, product catalog UI, tax engine, shipping calculator, and online payment integration. Includes CI/CD with **GitHub Actions** and comprehensive **pytest** test suite.
 >
 > `Python` `Flask` `Peewee` `SQLite` `Jinja2` `GitHub Actions` `pytest`
 
-### 📊 [Rotaract Delmas – Shiny App](https://github.com/guyjuniorcalvet/Rotaract_delmas_Shiny)
+### 📊 [Rotaract Delmas - Shiny App](https://github.com/guyjuniorcalvet/Rotaract_delmas_Shiny)
 > Interactive **R Shiny** application for data entry and management of the Rotaract de Delmas database, connected to a cloud-hosted **MySQL** database. Built during a university internship.
 >
 > `R` `Shiny` `MySQL` `Google Cloud` `Supabase`
@@ -95,15 +95,15 @@ I'm a passionate Computer Science student at **Université du Québec à Chicout
 >
 > `Python` `Streamlit` `OpenAI API`
 
-### 💻 [Data Structures – Postfix Notation (C++)](https://github.com/guyjuniorcalvet/TP2GJCMARIA)
+### 💻 [Data Structures - Postfix Notation (C++)](https://github.com/guyjuniorcalvet/TP2GJCMARIA)
 > Implementation of postfix notation evaluation using stacks and data structures in **C++**.
 >
 > `C++` `Data Structures`
 
 ### ⛏️ [Data Mining](https://github.com/guyjuniorcalvet/Forage-des-donn-es)
-> Data mining project exploring data extraction and analysis techniques.
+> Academic project focused on data mining techniques including pattern discovery, association rules, and knowledge extraction from structured datasets.
 >
-> `Data Mining`
+> `Data Mining` `Python`
 
 ---
 
